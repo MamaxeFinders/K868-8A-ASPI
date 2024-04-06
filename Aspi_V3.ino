@@ -16,24 +16,23 @@ float creditAmount = 0.0;
 unsigned long RemainingCredit = 0;
 unsigned long previousTime = 0;
 bool ProgramStarted = false;
-int SelectedProgram = 0;
 
 PCF8574 pcf8574_in1(0x22, 4, 5);   //input channel X1-8 (PCF8574(uint8_t address, uint8_t sda, uint8_t scl);)
 PCF8574 pcf8574_out1(0x24, 4, 5);  //output channel Y1-8
 
 // CREDITS
 const unsigned long CREDIT_DECREMENT_INTERVAL = 2000;                             // Interval in milliseconds between 2 decrement
-const float CREDIT_DECREMENT_AMOUNT[] = { 2.4, 1.0, 0, 0, 2.4, 0, 0, 0 };  // Amount to decrement in cents every second
+const float CREDIT_DECREMENT_AMOUNT[] = { 2.4, 0, 0, 0, 0, 0, 0, 0 };  // Amount to decrement in cents every second
 long CreditValue[] = { 50, 100, 200, 400 };                                      // Value of credit for each inputs
 
-// COMBINAISONS DES SORTIES RELAIS Y1-8
+// COMBINAISONS DES SORTIES RELAIS Y1-8 => NOT IN USE FOR ASPI
 int relay_out_sequence[8][8] = {
   { 0, 0, 0, 0, 0, 0, 0, 0 },  // Combination
   { 0, 0, 0, 0, 0, 0, 0, 0 },  // Combination
   { 0, 0, 0, 0, 0, 0, 0, 0 },  // Combination
   { 0, 0, 0, 0, 0, 0, 0, 0 },  // Combination
-  { 1, 0, 0, 0, 0, 0, 0, 0 },  // Combination Button1
-  { 0, 0, 0, 0, 0, 0, 0, 0 },  // Combination STOP
+  { 0, 0, 0, 0, 0, 0, 0, 0 },  // Combination
+  { 0, 0, 0, 0, 0, 0, 0, 0 },  // Combination
   { 0, 0, 0, 0, 0, 0, 0, 0 },  // Combination
   { 0, 0, 0, 0, 0, 0, 0, 0 }   // Combination
 };
@@ -43,8 +42,9 @@ String ProgDisplay[] =  { "NA",  "NA",  "NA",  "NA",  " ASPI ",  " STOP ",   "NA
 
 int TimePreStart = 3; // Pre Activate the system for X seconds before program starts
 
-int Standby_Output[] =   { 0, 0, 0, 0, 0, 0, 0, 1 }; // Combination Standby    Output Y1-16
-int allOFF_Output[] =    { 0, 0, 0, 0, 0, 0, 0, 0 }; // Combination All OFF    Output Y1-16
+int Standby_Output[] =   { 0, 0, 0, 0, 0, 0, 0, 1 }; // Combination Standby    Output Y1-8
+int START_Output[] =     { 1, 0, 0, 0, 0, 0, 0, 0 }; // Combination START    Output Y1-8
+int allOFF_Output[] =    { 0, 0, 0, 0, 0, 0, 0, 0 }; // Combination All OFF    Output Y1-8
 
 // Initialize the LCD screen
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -116,36 +116,35 @@ void loop() {
       wm.resetSettings();
       ESP.restart();
     }
-  } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "COIN" && ProgramStarted == false) {  // COIN inputs
+  } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "COIN" && creditAmount == 0) {  // COIN inputs
     creditAmount += CreditValue[InputIndex - 1];
+    activateRelays(allOFF_Output,-1);
     displayMessage("", "CREDIT : " + String(float(creditAmount / 100)) + " E  ", 1);
-    delay(100);// Adjust the delay to avoid reading twice the COIN input
-      SelectedProgram = InputIndex;
-      ProgramStarted = true;
-  } else if (creditAmount > 0 && SelectedProgram > 0 && ProgramStarted == true) {  // PROGRAM selected and not STOP
-      activateRelays(relay_out_sequence[SelectedProgram - 1],-1);
+        for (int i = 3; i > 0; i--) {
+          displayMessage(" PRET  " + String(i) + "        ", "", false);
+          delay(1000);
+        }
+  } else if (creditAmount > 0) {  // PROGRAM selected and not STOP
+      activateRelays(START_Output,-1);
       unsigned long currentTime = millis(); // Get the current time
       // Check if the interval has elapsed
       if (currentTime - previousTime >= CREDIT_DECREMENT_INTERVAL) {
           previousTime = currentTime; // Update the previous time
           // Decrement the credit
-          if (creditAmount >= CREDIT_DECREMENT_AMOUNT[SelectedProgram - 1]) {
-              creditAmount -= CREDIT_DECREMENT_AMOUNT[SelectedProgram - 1];
+          if (creditAmount >= CREDIT_DECREMENT_AMOUNT[0]) {
+              creditAmount -= CREDIT_DECREMENT_AMOUNT[0];
               int wholePart = int(creditAmount/100); // Get whole part
               int fractionalPart = int((creditAmount/100 - wholePart) * 100); // Get fractional part
-              displayMessage("PROG: " + String(ProgDisplay[SelectedProgram - 1]) + "      ","CREDIT : " + String(wholePart) + "." + (fractionalPart < 10 ? "0" : "") + String(fractionalPart) + " E  ",0);
+              displayMessage("PROG: " + String(ProgDisplay[5]) + "      ","CREDIT : " + String(wholePart) + "." + (fractionalPart < 10 ? "0" : "") + String(fractionalPart) + " E  ",0);
           } else {
               creditAmount = 0;
-              SelectedProgram = 0;
               InputIndex = -1;
-              ProgramStarted = false;
           }
       }
   }else if(creditAmount <= 0) {  // STANDBY mode when Credit = 0
     activateRelays(Standby_Output,-1);
     InputIndex = -1;
-    SelectedProgram = 0;
-    ProgramStarted = false;
+    creditAmount = 0;
     displayMessage("BONJOUR         ", "INSEREZ PIECE   ", 0);
   }
   delay(10);
