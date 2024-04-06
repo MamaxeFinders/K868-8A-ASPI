@@ -119,8 +119,7 @@ void loop() {
   } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "COIN" && ProgramStarted == false) {  // COIN inputs
     creditAmount += CreditValue[InputIndex - 1];
     displayMessage("", "CREDIT : " + String(float(creditAmount / 100)) + " E  ", 1);
-    delay(1000);// Adjust the delay to avoid reading twice the COIN input
-  } else if (creditAmount > 0 && InputDef[InputIndex - 1] == "BUTTON") {  // If credit > 0 listen buttons
+    delay(100);// Adjust the delay to avoid reading twice the COIN input
       SelectedProgram = InputIndex;
       ProgramStarted = true;
   } else if (creditAmount > 0 && SelectedProgram > 0 && ProgramStarted == true) {  // PROGRAM selected and not STOP
@@ -142,7 +141,7 @@ void loop() {
               ProgramStarted = false;
           }
       }
-  }else {  // STANDBY mode when Credit = 0
+  }else if(creditAmount <= 0) {  // STANDBY mode when Credit = 0
     activateRelays(Standby_Output,-1);
     InputIndex = -1;
     SelectedProgram = 0;
