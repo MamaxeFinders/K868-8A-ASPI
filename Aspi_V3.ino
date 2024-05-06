@@ -37,7 +37,7 @@ int relay_out_sequence[8][8] = {
   { 0, 0, 0, 0, 0, 0, 0, 0 }   // Combination
 };
 
-String InputDef[] =     { "COIN", "COIN", "COIN", "COIN", "BUTTON", "BUTTON", "NA", "NA" }; // Inputs function
+String InputDef[] =     { "COIN", "COIN", "COIN", "COIN", "BUTTON", "STOP", "NA", "NA" }; // Inputs function
 String ProgDisplay[] =  { "NA",  "NA",  "NA",  "NA",  " ASPI ",  " STOP ",   "NA", "NA",};  // Prog to display on LCD
 
 int TimePreStart = 3; // Pre Activate the system for X seconds before program starts
@@ -124,6 +124,11 @@ void loop() {
           displayMessage(" PRET  " + String(i) + "        ", "", false);
           delay(1000);
         }
+  } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "STOP" && creditAmount > 0) {  // COIN inputs
+    creditAmount = 0;
+    displayMessage("     STOP       ", "", true);
+    activateRelays(allOFF_Output,-1);
+    delay(3000);
   } else if (creditAmount > 0) {  // PROGRAM selected and not STOP
       activateRelays(START_Output,-1);
       unsigned long currentTime = millis(); // Get the current time
@@ -135,7 +140,7 @@ void loop() {
               creditAmount -= CREDIT_DECREMENT_AMOUNT[0];
               int wholePart = int(creditAmount/100); // Get whole part
               int fractionalPart = int((creditAmount/100 - wholePart) * 100); // Get fractional part
-              displayMessage("PROG: " + String(ProgDisplay[5]) + "      ","CREDIT : " + String(wholePart) + "." + (fractionalPart < 10 ? "0" : "") + String(fractionalPart) + " E  ",0);
+              displayMessage("PROG: " + String(ProgDisplay[4]) + "      ","CREDIT : " + String(wholePart) + "." + (fractionalPart < 10 ? "0" : "") + String(fractionalPart) + " E  ",0);
           } else {
               creditAmount = 0;
               InputIndex = -1;
