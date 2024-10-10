@@ -23,7 +23,7 @@ PCF8574 pcf8574_out1(0x24, 4, 5);  //output channel Y1-8
 
 // CREDITS
 const unsigned long CREDIT_DECREMENT_INTERVAL = 2000;                             // Interval in milliseconds between 2 decrement
-const float CREDIT_DECREMENT_AMOUNT[] = { 2.4, 0, 0, 0, 0, 100, 0, 0 };  // Amount to decrement in cents every second
+const float CREDIT_DECREMENT_AMOUNT[] = { 1.4, 0, 0, 0, 0, 100, 0, 0 };  // Amount to decrement in cents every second
 long CreditValue[] = { 50, 100, 200, 400 };                                      // Value of credit for each inputs
 
 // COMBINAISONS DES SORTIES RELAIS Y1-8 => NOT IN USE FOR ASPI
@@ -125,14 +125,14 @@ void loop() {
             displayMessage(" PRET  " + String(i) + "        ", "", false);
             delay(1000);
           }
-  } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "STOP" && creditAmount > 0) {  // COIN inputs
+  } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "STOP" && creditAmount > 0) {  // STOP inputs
       creditAmount = 0;
       displayMessage("     STOP       ", "", true);
       activateRelays(allOFF_Output,-1);
       delay(3000);
   } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "BUTTON" && creditAmount > 0 && InputIndex != SelectedProgram) {  // BUTTON inputs
       activateRelays(allOFF_Output,-1);
-      displayMessage("DEPART PROGRAMME", String(ProgDisplay[SelectedProgram - 1]), false);
+      displayMessage("DEPART PROGRAMME", String(ProgDisplay[SelectedProgram - 1]), true);
       delay(1000);
       SelectedProgram = InputIndex;
   } else if (creditAmount > 0) {  // PROGRAM selected and not STOP
