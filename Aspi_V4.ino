@@ -39,7 +39,7 @@ int relay_out_sequence[8][8] = {
 };
 
 String InputDef[] =     { "COIN", "COIN", "COIN", "BUTTON", "BUTTON", "STOP", "NA", "NA" }; // Inputs function
-String ProgDisplay[] =  { "NA",  "NA",  "NA",  "ASPI",  " SOUFLETTE ",  " STOP ",   "NA", "NA",};  // Prog to display on LCD
+String ProgDisplay[] =  { "NA",  "NA",  "NA",  "ASPI",  " AIR",  " STOP ",   "NA", "NA",};  // Prog to display on LCD
 
 int TimePreStart = 3; // Pre Activate the system for X seconds before program starts
 
@@ -118,20 +118,25 @@ void loop() {
       ESP.restart();
     }
   } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "COIN" && creditAmount == 0) {  // COIN inputs
-    creditAmount += CreditValue[InputIndex - 1];
-    activateRelays(allOFF_Output,-1);
-    displayMessage("", "CREDIT : " + String(float(creditAmount / 100)) + " E  ", 1);
-        for (int i = 3; i > 0; i--) {
-          displayMessage(" PRET  " + String(i) + "        ", "", false);
-          delay(1000);
-        }
+      creditAmount += CreditValue[InputIndex - 1];
+      activateRelays(allOFF_Output,-1);
+      displayMessage("", "CREDIT : " + String(float(creditAmount / 100)) + " E  ", 1);
+          for (int i = 3; i > 0; i--) {
+            displayMessage(" PRET  " + String(i) + "        ", "", false);
+            delay(1000);
+          }
   } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "STOP" && creditAmount > 0) {  // COIN inputs
-    creditAmount = 0;
-    displayMessage("     STOP       ", "", true);
-    activateRelays(allOFF_Output,-1);
-    delay(3000);
+      creditAmount = 0;
+      displayMessage("     STOP       ", "", true);
+      activateRelays(allOFF_Output,-1);
+      delay(3000);
+  } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "BUTTON" && creditAmount > 0 && InputIndex != SelectedProgram) {  // BUTTON inputs
+      activateRelays(allOFF_Output,-1);
+      displayMessage("DEPART PROGRAMME", String(ProgDisplay[SelectedProgram - 1]), false);
+      delay(1000);
+      SelectedProgram = InputIndex;
   } else if (creditAmount > 0) {  // PROGRAM selected and not STOP
-      activateRelays(relay_out_sequence[InputIndex - 1],-1);
+      activateRelays(relay_out_sequence[SelectedProgram - 1],-1);
       unsigned long currentTime = millis(); // Get the current time
       // Check if the interval has elapsed
       if (currentTime - previousTime >= CREDIT_DECREMENT_INTERVAL) {
@@ -141,7 +146,7 @@ void loop() {
               creditAmount -= CREDIT_DECREMENT_AMOUNT[0];
               int wholePart = int(creditAmount/100); // Get whole part
               int fractionalPart = int((creditAmount/100 - wholePart) * 100); // Get fractional part
-              displayMessage("PROG: " + String(ProgDisplay[4]) + "      ","CREDIT : " + String(wholePart) + "." + (fractionalPart < 10 ? "0" : "") + String(fractionalPart) + " E  ",1);
+              displayMessage("PROG: " + String(ProgDisplay[SelectedProgram - 1]) + "      ","CREDIT : " + String(wholePart) + "." + (fractionalPart < 10 ? "0" : "") + String(fractionalPart) + " E  ",1);
           } else {
               creditAmount = 0;
               InputIndex = -1;
