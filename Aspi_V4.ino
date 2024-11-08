@@ -191,8 +191,8 @@ void activateRelays(int* outputStatus, int ForceLow) {
       } else if (outputStatus[i] == 0) {
         pcf8574_out1.digitalWrite(i, HIGH); // Relay OFF
       }
-
   }
+  delay(10);
 }
 // ---- SEND MESSAGE TO LCD & SERIAL ---- //
 void displayMessage(const String& messageL1, const String& messageL2, bool clearLCD) {
