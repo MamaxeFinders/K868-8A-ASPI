@@ -36,7 +36,7 @@ int relay_out_sequence[8][8] = {
 };
 
 String InputDef[] =     { "COIN", "COIN", "COIN", "BUTTON", "BUTTON", "STOP", "NA", "NA" }; // Inputs function
-String ProgDisplay[] =  { "NA",  "NA",  "NA",  "ASPI",  " AIR",  " STOP ",   "NA", "NA",};  // Prog to display on LCD
+String ProgDisplay[] =  { "NA",  "NA",  "NA",  "   ASPI   ",  "   AIR   ",  " STOP ",   "NA", "NA",};  // Prog to display on LCD
 
 int TimePreStart = 3; // Pre Activate the system for X seconds before program starts
 
@@ -105,7 +105,8 @@ void loop() {
       delay(3000);
   } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "BUTTON" && creditAmount > 0 && InputIndex != SelectedProgram) {  // BUTTON inputs
       activateRelays(allOFF_Output,-1);
-      displayMessage("DEPART PROGRAMME", String(ProgDisplay[SelectedProgram - 1]), true);
+      delay(100);
+      displayMessage("DEPART PROGRAMME", String(ProgDisplay[SelectedProgram - 1]), false);
       delay(1000);
       SelectedProgram = InputIndex;
   } else if (creditAmount > 0) {  // PROGRAM selected and not STOP
