@@ -1,4 +1,3 @@
-
 //NodeMCU-32S
 //https://www.kincony.com/how-to-programming.html
 #include <Wire.h>
@@ -13,7 +12,7 @@ float creditAmount = 0.0;
 unsigned long RemainingCredit = 0;
 unsigned long previousTime = 0;
 bool ProgramStarted = false;
-int SelectedProgram = 0;
+int SelectedProgram = 1;
 
 PCF8574 pcf8574_in1(0x22, 4, 5);   //input channel X1-8 (PCF8574(uint8_t address, uint8_t sda, uint8_t scl);)
 PCF8574 pcf8574_out1(0x24, 4, 5);  //output channel Y1-8
@@ -36,7 +35,7 @@ int relay_out_sequence[8][8] = {
 };
 
 String InputDef[] =     { "COIN", "COIN", "COIN", "BUTTON", "BUTTON", "STOP", "NA", "NA" }; // Inputs function
-String ProgDisplay[] =  { "NA",  "NA",  "NA",  "   ASPI   ",  "   AIR   ",  " STOP ",   "NA", "NA",};  // Prog to display on LCD
+String ProgDisplay[] =  { "NA",  "NA",  "NA",  "<<<--- ASPI",  "AIR --->>>",  " STOP ",   "NA", "NA",};  // Prog to display on LCD
 
 int TimePreStart = 3; // Pre Activate the system for X seconds before program starts
 
@@ -104,11 +103,14 @@ void loop() {
       activateRelays(allOFF_Output,-1);
       delay(3000);
   } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "BUTTON" && creditAmount > 0 && InputIndex != SelectedProgram) {  // BUTTON inputs
-      activateRelays(allOFF_Output,-1);
-      delay(100);
-      displayMessage("DEPART PROGRAMME", String(ProgDisplay[SelectedProgram - 1]), false);
-      delay(1000);
       SelectedProgram = InputIndex;
+      if (SelectedProgram > 0 && SelectedProgram <= 8) {
+          activateRelays(Standby_Output, -1);
+          displayMessage("DEPART PROGRAMME", String(ProgDisplay[SelectedProgram - 1]), false);
+          delay(3000);
+      } else {
+          displayMessage("DEPART PROGRAMME", "Invalid Program", false); // Handle error or set a default message
+      }
   } else if (creditAmount > 0) {  // PROGRAM selected and not STOP
       activateRelays(relay_out_sequence[SelectedProgram - 1],-1);
       unsigned long currentTime = millis(); // Get the current time
@@ -120,7 +122,7 @@ void loop() {
               creditAmount -= CREDIT_DECREMENT_AMOUNT[0];
               int wholePart = int(creditAmount/100); // Get whole part
               int fractionalPart = int((creditAmount/100 - wholePart) * 100); // Get fractional part
-              displayMessage("PROG: " + String(ProgDisplay[SelectedProgram - 1]) + "      ","CREDIT : " + String(wholePart) + "." + (fractionalPart < 10 ? "0" : "") + String(fractionalPart) + " E  ",1);
+              displayMessage("PROG: " + String(ProgDisplay[SelectedProgram - 1]) + "      ","CREDIT : " + String(wholePart) + "." + (fractionalPart < 10 ? "0" : "") + String(fractionalPart) + " E  ",0);
           } else {
               creditAmount = 0;
               InputIndex = -1;
@@ -132,10 +134,6 @@ void loop() {
     creditAmount = 0;
       if (millis() - lastCheck > checkInterval) {
         lastCheck = millis();
-        Serial.println("LCD is working fine.");
-        lcd.init();           // Reinitialize the LCD
-        lcd.backlight();      // Turn on the backlight
-        lcd.clear();          // Clear the screen
         displayMessage("BONJOUR         ", "INSEREZ PIECE   ", 0);
     }
   }
@@ -165,11 +163,11 @@ void displayMessage(const String& messageL1, const String& messageL2, bool clear
   }
   if (messageL1 != "") {
     lcd.setCursor(0, 0);
-    lcd.print(messageL1);
+    lcd.print(messageL1.substring(0, 16));
   }
   if (messageL2 != "") {
     lcd.setCursor(0, 1);
-    lcd.print(messageL2);
+    lcd.print(messageL2.substring(0, 16));
   }
 }
 // ---- GET VALUE INPUT STATUS ---- //
