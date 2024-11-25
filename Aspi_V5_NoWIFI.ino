@@ -11,8 +11,10 @@ String DeviceName = "ASPI";
 float creditAmount = 0.0;
 unsigned long RemainingCredit = 0;
 unsigned long previousTime = 0;
-bool ProgramStarted = false;
 int SelectedProgram = 1;
+bool ProgramSTART = false;
+const unsigned long programStartDelay = 3000; // 3 seconds
+unsigned long programStartTime = 0; 
 
 PCF8574 pcf8574_in1(0x22, 4, 5);   //input channel X1-8 (PCF8574(uint8_t address, uint8_t sda, uint8_t scl);)
 PCF8574 pcf8574_out1(0x24, 4, 5);  //output channel Y1-8
@@ -95,7 +97,7 @@ void loop() {
       displayMessage("", "CREDIT : " + String(float(creditAmount / 100)) + " E  ", 1);
           for (int i = 3; i > 0; i--) {
             displayMessage(" PRET  " + String(i) + "        ", "", false);
-            delay(1000);
+            delay(500);
           }
   } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "STOP" && creditAmount > 0) {  // STOP inputs
       creditAmount = 0;
@@ -105,13 +107,19 @@ void loop() {
   } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "BUTTON" && creditAmount > 0 && InputIndex != SelectedProgram) {  // BUTTON inputs
       SelectedProgram = InputIndex;
       if (SelectedProgram > 0 && SelectedProgram <= 8) {
-          activateRelays(Standby_Output, -1);
-          displayMessage("DEPART PROGRAMME", String(ProgDisplay[SelectedProgram - 1]), false);
-          delay(3000);
+          displayMessage(String(ProgDisplay[SelectedProgram - 1]), "DEPART PROGRAMME", false);
+          activateRelays(allOFF_Output, -1);
+          ProgramSTART = true;
+          programStartTime = millis();         
       } else {
           displayMessage("DEPART PROGRAMME", "Invalid Program", false); // Handle error or set a default message
       }
-  } else if (creditAmount > 0) {  // PROGRAM selected and not STOP
+  } else if (creditAmount > 0 && ProgramSTART) {  // First PROGRAM start
+      if (millis() - programStartTime >= programStartDelay) {
+            // Delay has elapsed
+            ProgramSTART = false;
+        }
+  } else if (creditAmount > 0 && ProgramSTART == false) {  // PROGRAM selected and not STOP
       activateRelays(relay_out_sequence[SelectedProgram - 1],-1);
       unsigned long currentTime = millis(); // Get the current time
       // Check if the interval has elapsed
@@ -122,7 +130,7 @@ void loop() {
               creditAmount -= CREDIT_DECREMENT_AMOUNT[0];
               int wholePart = int(creditAmount/100); // Get whole part
               int fractionalPart = int((creditAmount/100 - wholePart) * 100); // Get fractional part
-              displayMessage("PROG: " + String(ProgDisplay[SelectedProgram - 1]) + "      ","CREDIT : " + String(wholePart) + "." + (fractionalPart < 10 ? "0" : "") + String(fractionalPart) + " E  ",0);
+              displayMessage(String(ProgDisplay[SelectedProgram - 1]),"CREDIT : " + String(wholePart) + "." + (fractionalPart < 10 ? "0" : "") + String(fractionalPart) + " E  ",0);
           } else {
               creditAmount = 0;
               InputIndex = -1;
@@ -137,7 +145,6 @@ void loop() {
         displayMessage("BONJOUR         ", "INSEREZ PIECE   ", 0);
     }
   }
-  delay(10);
 }
 
 // ======================================== FUNCTIONS ======================================== //
@@ -150,26 +157,26 @@ void activateRelays(int* outputStatus, int ForceLow) {
         pcf8574_out1.digitalWrite(i, HIGH); // Relay OFF
       }
   }
-  delay(10);
 }
 // ---- SEND MESSAGE TO LCD & SERIAL ---- //
 void displayMessage(const String& messageL1, const String& messageL2, bool clearLCD) {
+  // Truncate strings to 16 characters
+  String line1 = messageL1.substring(0, 16);
+  String line2 = messageL2.substring(0, 16);
+
   // Display message on Serial port
-  String messageSerial = messageL1 + " & " + messageL2;
-  Serial.println(messageSerial);
+  Serial.println(line1 + " & " + line2);
+
   // Display message on LCD
   if (clearLCD) {
     lcd.clear();
   }
-  if (messageL1 != "") {
-    lcd.setCursor(0, 0);
-    lcd.print(messageL1.substring(0, 16));
-  }
-  if (messageL2 != "") {
-    lcd.setCursor(0, 1);
-    lcd.print(messageL2.substring(0, 16));
-  }
+  lcd.setCursor(0, 0);
+  lcd.print(line1);
+  lcd.setCursor(0, 1);
+  lcd.print(line2);
 }
+
 // ---- GET VALUE INPUT STATUS ---- //
 int getInputIndexINPUTSTATUS(uint8_t inputStatus) {
   for (int i = 0; i < 8; i++) {
