@@ -19,7 +19,7 @@ PCF8574 pcf8574_out1(0x24, 4, 5);  //output channel Y1-8
 
 // CREDITS
 const unsigned long CREDIT_DECREMENT_INTERVAL = 2000;                             // Interval in milliseconds between 2 decrement
-const float CREDIT_DECREMENT_AMOUNT[] = { 1.4, 0, 0, 0, 0, 100, 0, 0 };  // Amount to decrement in cents every second
+const float CREDIT_DECREMENT_AMOUNT[] = { 1.2, 1.2, 0, 0, 0, 100, 0, 0 };  // Amount to decrement in cents every second
 long CreditValue[] = { 50, 100, 200, 400 };                                      // Value of credit for each inputs
 
 // COMBINAISONS DES SORTIES RELAIS Y1-8 => NOT IN USE FOR ASPI
