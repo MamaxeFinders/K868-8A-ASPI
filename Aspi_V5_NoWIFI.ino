@@ -66,9 +66,12 @@ void setup() {
   } else {
     Serial.println("Failed to initialize one or more PCF8574 instances.");
   }
-
+  Wire.begin();                  // Initialize I2C
+  Wire.setClock(100000);         // Set I2C clock speed to 100 kHz for stability
   lcd.init();
   lcd.backlight();  // initialize the lcd
+  delay(50);                     // Ensure LCD is ready
+  lcd.clear();
   displayMessage("      READY     ", String(DeviceName) + " " + String(DeviceNumber) + "    ", true);
   delay(100);
   activateRelays(Standby_Output,-1);
