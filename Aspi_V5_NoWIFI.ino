@@ -47,6 +47,8 @@ int allOFF_Output[] =    { 0, 0, 0, 0, 0, 0, 0, 0 }; // Combination All OFF    O
 
 // Initialize the LCD screen
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+char msgBuffer[32];  // Enough space for the string
+char line2Buffer[32]; // or larger if needed
 
 // ======================================== SETUP ======================================== //
 void setup() {
@@ -72,10 +74,10 @@ void setup() {
   lcd.backlight();  // initialize the lcd
   delay(50);                     // Ensure LCD is ready
   lcd.clear();
-  displayMessage("      READY     ", String(DeviceName) + " " + String(DeviceNumber) + "    ", true);
+  displayMessage("      READY     ", String(DeviceName) + " " + String(DeviceNumber) + "    ", 1);
   delay(100);
   activateRelays(Standby_Output,-1);
-  delay(1000);
+  delay(100);
 }
 
 // ======================================== LOOP ======================================== //
@@ -97,9 +99,11 @@ void loop() {
   } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "COIN" && creditAmount == 0) {  // COIN inputs
       creditAmount += CreditValue[InputIndex - 1];
       activateRelays(allOFF_Output,-1);
-      displayMessage("", "CREDIT : " + String(float(creditAmount / 100)) + " E  ", 1);
+      //displayMessage("", "CREDIT : " + String(float(creditAmount / 100)) + " E  ", 1);
+      snprintf(msgBuffer, sizeof(msgBuffer), "CREDIT : %.2f E", creditAmount / 100.0);
+      displayMessage(msgBuffer, 0);
           for (int i = 3; i > 0; i--) {
-            displayMessage(" PRET  " + String(i) + "        ", "", false);
+            displayMessage(" PRET  " + String(i) + "        ", "", 0);
             delay(500);
           }
   } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "STOP" && creditAmount > 0) {  // STOP inputs
@@ -107,15 +111,15 @@ void loop() {
       displayMessage("     STOP       ", "", true);
       activateRelays(allOFF_Output,-1);
       delay(3000);
-  } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "BUTTON" && creditAmount > 0 && InputIndex != SelectedProgram) {  // BUTTON inputs
+  } else if (InputIndex > 0 && InputDef[InputIndex - 1] == "BUTTON" && creditAmount > 0 && InputIndex != SelectedProgram) {  // Program change
       SelectedProgram = InputIndex;
       if (SelectedProgram > 0 && SelectedProgram <= 8) {
-          displayMessage(String(ProgDisplay[SelectedProgram - 1]), "DEPART PROGRAMME", false);
+          displayMessage(String(ProgDisplay[SelectedProgram - 1]), "DEPART PROGRAMME", 0);
           activateRelays(allOFF_Output, -1);
           ProgramSTART = true;
           programStartTime = millis();         
       } else {
-          displayMessage("DEPART PROGRAMME", "Invalid Program", false); // Handle error or set a default message
+          displayMessage("DEPART PROGRAMME", "Invalid Program", 0); // Handle error or set a default message
       }
   } else if (creditAmount > 0 && ProgramSTART) {  // First PROGRAM start
       if (millis() - programStartTime >= programStartDelay) {
@@ -129,11 +133,14 @@ void loop() {
       if (currentTime - previousTime >= CREDIT_DECREMENT_INTERVAL) {
           previousTime = currentTime; // Update the previous time
           // Decrement the credit
-          if (creditAmount >= CREDIT_DECREMENT_AMOUNT[0]) {
-              creditAmount -= CREDIT_DECREMENT_AMOUNT[0];
+        float thisDecrement = CREDIT_DECREMENT_AMOUNT[SelectedProgram - 1];
+          if (creditAmount >= thisDecrement) {
+              creditAmount -= thisDecrement;
               int wholePart = int(creditAmount/100); // Get whole part
               int fractionalPart = int((creditAmount/100 - wholePart) * 100); // Get fractional part
-              displayMessage(String(ProgDisplay[SelectedProgram - 1]),"CREDIT : " + String(wholePart) + "." + (fractionalPart < 10 ? "0" : "") + String(fractionalPart) + " E  ",0);
+              //displayMessage(String(ProgDisplay[SelectedProgram - 1]),"CREDIT : " + String(wholePart) + "." + (fractionalPart < 10 ? "0" : "") + String(fractionalPart) + " E  ",0);
+              snprintf(line2Buffer, sizeof(line2Buffer), "CREDIT : %d.%02d E", wholePart, fractionalPart);
+              displayMessage(ProgDisplay[SelectedProgram - 1], line2Buffer, false);
           } else {
               creditAmount = 0;
               InputIndex = -1;
@@ -160,9 +167,8 @@ void activateRelays(int* outputStatus, int ForceLow) {
         pcf8574_out1.digitalWrite(i, HIGH); // Relay OFF
       }
   }
-  delay(100);
+  delay(500);
   lcd.clear();
-  delay(50);
   lcd.init();
   lcd.backlight();
   delay(100);
