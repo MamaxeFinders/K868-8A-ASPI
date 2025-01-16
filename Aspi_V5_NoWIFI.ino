@@ -3,7 +3,7 @@
 #include <Wire.h>
 #include <PCF8574.h> // Change library LATENCY | https://github.com/xreef/PCF8574_library/tree/master
 #include <LiquidCrystal_I2C.h>
-#include <HardwareSerial.h>  //Library from Arduino
+//#include <HardwareSerial.h>  //Library from Arduino
 //#include <RCSwitch.h> //https://github.com/sui77/rc-switch
 
 int DeviceNumber = 1;
@@ -51,8 +51,10 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 // ======================================== SETUP ======================================== //
 void setup() {
   Serial.begin(115200);
-
   Serial.println("\n Starting");
+  Wire.begin();
+  Wire.setClock(100000);  // standard mode = 100 kHz
+  
   pinMode(0, INPUT);  // Button DOWNLOAD used to reset 3sec
 
   // Set all pins of PCF8574 instances as inputs or outputs
@@ -66,8 +68,6 @@ void setup() {
   } else {
     Serial.println("Failed to initialize one or more PCF8574 instances.");
   }
-  Wire.begin();                  // Initialize I2C
-  Wire.setClock(100000);         // Set I2C clock speed to 100 kHz for stability
   lcd.init();
   lcd.backlight();  // initialize the lcd
   delay(50);                     // Ensure LCD is ready
@@ -160,6 +160,12 @@ void activateRelays(int* outputStatus, int ForceLow) {
         pcf8574_out1.digitalWrite(i, HIGH); // Relay OFF
       }
   }
+  delay(100);
+  lcd.clear();
+  delay(50);
+  lcd.init();
+  lcd.backlight();
+  delay(100);
 }
 // ---- SEND MESSAGE TO LCD & SERIAL ---- //
 void displayMessage(const String& messageL1, const String& messageL2, bool clearLCD) {
