@@ -1,0 +1,184 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// ------------- PIN DEFINITIONS -------------
+#define COIN_PIN      36   // Coin input (active LOW)
+#define PROGRAM_PIN   39   // Program selection input (LOW: ASPI, HIGH: AIR)
+#define RELAY_ASPI     2   // Relay output for ASPI (active LOW)
+#define RELAY_AIR     15   // Relay output for AIR  (active LOW)
+
+// ------------- LCD CONFIGURATION -------------
+// I²C pins: SDA on GPIO4, SCL on GPIO16
+// Adjust the LCD address (0x27) if necessary.
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// ------------- CREDIT MANAGEMENT -------------
+float creditAmount = 0.0;        // Stored in cents
+const float COIN_VALUE = 50.0;   // Each coin adds 50 cents (i.e. 0.50 E)
+
+// Decrement settings (adjust if needed)
+// Here both programs consume 1.2 cents per interval.
+unsigned long previousDecrementTime = 0;
+const unsigned long CREDIT_DECREMENT_INTERVAL = 2000; // milliseconds (2 sec)
+const float CREDIT_DECREMENT_AMOUNT[3] = { 0.0, 1.2, 1.2 }; // index 1: ASPI, index 2: AIR
+
+// ------------- PROGRAM SELECTION -------------
+int currentProgram = 0;          // 1 for ASPI, 2 for AIR
+bool programChanging = false;    // Flag to indicate a program-change delay period
+unsigned long programChangeTime = 0;
+const unsigned long PROGRAM_CHANGE_DELAY = 3000; // 3 seconds delay on program change
+
+// ------------- DEBOUNCE FOR COIN INPUT -------------
+bool coinPressed = false;
+unsigned long lastCoinPressTime = 0;
+const unsigned long COIN_DEBOUNCE_DELAY = 200; // milliseconds
+
+// ------------- FUNCTION PROTOTYPES -------------
+void displayMessage(const String &line1, const String &line2, bool clearLCD);
+void deactivateRelays();
+String formatCredit(float credit);
+
+void setup() {
+  Serial.begin(115200);
+  
+  // Initialize I2C on SDA=GPIO4, SCL=GPIO16
+  Wire.begin(4, 16);
+  
+  // Initialize LCD
+  lcd.init();
+  lcd.backlight();
+  lcd.clear();
+  
+  // Set pin modes
+  pinMode(COIN_PIN, INPUT);         // Coin input (external pull-up expected)
+  pinMode(PROGRAM_PIN, INPUT);        // Program selection (external pull-up expected)
+  pinMode(RELAY_ASPI, OUTPUT);
+  pinMode(RELAY_AIR, OUTPUT);
+  
+  // Ensure both relays are off (HIGH = OFF)
+  deactivateRelays();
+  
+  // Read the initial program selection from GPIO39
+  currentProgram = (digitalRead(PROGRAM_PIN) == LOW) ? 1 : 2;
+  programChanging = false;
+  
+  // Initial welcome message
+  displayMessage("BONJOUR", "INSERT COIN", true);
+}
+
+void loop() {
+  unsigned long currentTime = millis();
+  
+  // ----- COIN INPUT HANDLING (GPIO36) -----
+  // Assumes active LOW: coin inserted when the pin reads LOW.
+  bool coinState = digitalRead(COIN_PIN);
+  if (coinState == LOW && !coinPressed && (currentTime - lastCoinPressTime > COIN_DEBOUNCE_DELAY)) {
+    coinPressed = true;
+    lastCoinPressTime = currentTime;
+    creditAmount += COIN_VALUE;
+    Serial.print("Coin inserted. Credit is now: ");
+    Serial.println(creditAmount);
+    // Show updated credit to the user
+    displayMessage("COIN INSERTED", "Credit: " + formatCredit(creditAmount), true);
+    delay(500); // Pause briefly so the user can read the message
+  } else if (coinState == HIGH) {
+    coinPressed = false;
+  }
+  
+  // ----- PROGRAM SELECTION HANDLING (GPIO39) -----
+  // Read the digital state: LOW = program 1 (ASPI), HIGH = program 2 (AIR)
+  int newProgram = (digitalRead(PROGRAM_PIN) == LOW) ? 1 : 2;
+  
+  // Only allow program activation if there is credit.
+  if (creditAmount > 0) {
+    // If the user has changed the program selection, start a change delay.
+    if (newProgram != currentProgram) {
+      currentProgram = newProgram;
+      programChanging = true;
+      programChangeTime = currentTime;
+      // For safety, turn off both relays while waiting.
+      deactivateRelays();
+      // Inform the user of the new selection.
+      String progName = (currentProgram == 1) ? "<<<--- ASPI" : "AIR--->>>";
+      displayMessage(" ", progName, true);
+      delay(500);
+    }
+    
+    // During the 3-second delay after a program change, show a countdown.
+    if (programChanging) {
+      unsigned long elapsed = currentTime - programChangeTime;
+      if (elapsed < PROGRAM_CHANGE_DELAY) {
+        int secondsLeft = (PROGRAM_CHANGE_DELAY - elapsed + 999) / 1000; // Round up to whole seconds
+        String progName = (currentProgram == 1) ? "<<<--- ASPI" : "AIR--->>>";
+        displayMessage(progName, String(secondsLeft) + " sec", false);
+      } else {
+        // Delay elapsed: end the change period.
+        programChanging = false;
+      }
+    }
+    
+    // When not in a program-change delay, activate the corresponding relay and update credit.
+    if (!programChanging) {
+      // Activate the selected program’s relay (active LOW) and ensure the other relay is off.
+      if (currentProgram == 1) {
+        digitalWrite(RELAY_ASPI, LOW);    // ASPI ON
+        digitalWrite(RELAY_AIR, HIGH);      // AIR OFF
+      } else if (currentProgram == 2) {
+        digitalWrite(RELAY_ASPI, HIGH);     // ASPI OFF
+        digitalWrite(RELAY_AIR, LOW);       // AIR ON
+      }
+      
+      // Decrement the credit at the set interval.
+      if (currentTime - previousDecrementTime >= CREDIT_DECREMENT_INTERVAL) {
+        previousDecrementTime = currentTime;
+        float decrement = (currentProgram == 1) ? CREDIT_DECREMENT_AMOUNT[1] : CREDIT_DECREMENT_AMOUNT[2];
+        creditAmount -= decrement;
+        if (creditAmount < 0) {
+          creditAmount = 0;
+        }
+      }
+      
+      // Update the LCD to show the active program and remaining credit.
+      String runningProg = (currentProgram == 1) ? "<<<--- ASPI" : "AIR--->>>";
+      displayMessage(runningProg, "Credit: " + formatCredit(creditAmount), false);
+    }
+  }
+  else {
+    // No credit: turn off relays and prompt the user to insert a coin.
+    deactivateRelays();
+    displayMessage("BONJOUR", "INSERT COIN", false);
+  }
+  
+  delay(100); // Small delay to help stabilize the loop
+}
+
+// ------------- HELPER FUNCTIONS -------------
+//
+// displayMessage() writes two 16-character–max strings to the LCD.
+// If clearLCD is true, the display is cleared before printing.
+void displayMessage(const String &line1, const String &line2, bool clearLCD) {
+  String l1 = line1;
+  String l2 = line2;
+  if (l1.length() > 16) l1 = l1.substring(0, 16);
+  if (l2.length() > 16) l2 = l2.substring(0, 16);
+  
+  if (clearLCD) {
+    lcd.clear();
+  }
+  lcd.setCursor(0, 0);
+  lcd.print(l1);
+  lcd.setCursor(0, 1);
+  lcd.print(l2);
+}
+
+// deactivateRelays() turns both relay outputs OFF.
+void deactivateRelays() {
+  digitalWrite(RELAY_ASPI, HIGH);
+  digitalWrite(RELAY_AIR, HIGH);
+}
+
+// formatCredit() returns a string with the credit amount in Euros (with 2 decimal places).
+String formatCredit(float credit) {
+  float euros = credit / 100.0;
+  return String(euros, 2) + " E";
+}
