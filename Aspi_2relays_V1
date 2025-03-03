@@ -1,3 +1,4 @@
+//NodeMCU-32S
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
@@ -20,7 +21,8 @@ const float COIN_VALUE = 50.0;   // Each coin adds 50 cents (i.e. 0.50 E)
 // Here both programs consume 1.2 cents per interval.
 unsigned long previousDecrementTime = 0;
 const unsigned long CREDIT_DECREMENT_INTERVAL = 2000; // milliseconds (2 sec)
-const float CREDIT_DECREMENT_AMOUNT[3] = { 0.0, 1.2, 1.2 }; // index 1: ASPI, index 2: AIR
+const float CREDIT_DECREMENT_AMOUNT[3] = { 0.0, 1.2, 1.2 }; // index 0: n.a., index 1: ASPI, index 2: AIR
+const String PROG_NAME[3] = {"","     <<<--- ASPI", "AIR --->>>      "};
 
 // ------------- PROGRAM SELECTION -------------
 int currentProgram = 0;          // 1 for ASPI, 2 for AIR
@@ -63,7 +65,7 @@ void setup() {
   programChanging = false;
   
   // Initial welcome message
-  displayMessage("BONJOUR", "INSERT COIN", true);
+  displayMessage("BONJOUR", "INSEREZ PIECE   ", true);
 }
 
 void loop() {
@@ -80,7 +82,7 @@ void loop() {
     Serial.println(creditAmount);
     // Show updated credit to the user
     displayMessage("COIN INSERTED", "Credit: " + formatCredit(creditAmount), true);
-    delay(500); // Pause briefly so the user can read the message
+    delay(800); // Pause briefly so the user can read the message
   } else if (coinState == HIGH) {
     coinPressed = false;
   }
@@ -99,8 +101,8 @@ void loop() {
       // For safety, turn off both relays while waiting.
       deactivateRelays();
       // Inform the user of the new selection.
-      String progName = (currentProgram == 1) ? "<<<--- ASPI" : "AIR--->>>";
-      displayMessage(" ", progName, true);
+      String progName = (currentProgram == 1) ? PROG_NAME[1] : PROG_NAME[2];
+      displayMessage(progName, "                ", true);
       delay(500);
     }
     
@@ -109,7 +111,7 @@ void loop() {
       unsigned long elapsed = currentTime - programChangeTime;
       if (elapsed < PROGRAM_CHANGE_DELAY) {
         int secondsLeft = (PROGRAM_CHANGE_DELAY - elapsed + 999) / 1000; // Round up to whole seconds
-        String progName = (currentProgram == 1) ? "<<<--- ASPI" : "AIR--->>>";
+        String progName = (currentProgram == 1) ? PROG_NAME[1] : PROG_NAME[2];
         displayMessage(progName, String(secondsLeft) + " sec", false);
       } else {
         // Delay elapsed: end the change period.
@@ -121,11 +123,11 @@ void loop() {
     if (!programChanging) {
       // Activate the selected program’s relay (active LOW) and ensure the other relay is off.
       if (currentProgram == 1) {
-        digitalWrite(RELAY_ASPI, LOW);    // ASPI ON
-        digitalWrite(RELAY_AIR, HIGH);      // AIR OFF
+        digitalWrite(RELAY_ASPI, HIGH);    // ASPI ON
+        digitalWrite(RELAY_AIR, LOW);      // AIR OFF
       } else if (currentProgram == 2) {
-        digitalWrite(RELAY_ASPI, HIGH);     // ASPI OFF
-        digitalWrite(RELAY_AIR, LOW);       // AIR ON
+        digitalWrite(RELAY_ASPI, LOW);     // ASPI OFF
+        digitalWrite(RELAY_AIR, HIGH);       // AIR ON
       }
       
       // Decrement the credit at the set interval.
@@ -139,14 +141,14 @@ void loop() {
       }
       
       // Update the LCD to show the active program and remaining credit.
-      String runningProg = (currentProgram == 1) ? "<<<--- ASPI" : "AIR--->>>";
+      String runningProg = (currentProgram == 1) ? PROG_NAME[1] : PROG_NAME[2];
       displayMessage(runningProg, "Credit: " + formatCredit(creditAmount), false);
     }
   }
   else {
     // No credit: turn off relays and prompt the user to insert a coin.
     deactivateRelays();
-    displayMessage("BONJOUR", "INSERT COIN", false);
+    displayMessage("BONJOUR         ", "INSEREZ PIECE   ", false);
   }
   
   delay(100); // Small delay to help stabilize the loop
@@ -173,8 +175,8 @@ void displayMessage(const String &line1, const String &line2, bool clearLCD) {
 
 // deactivateRelays() turns both relay outputs OFF.
 void deactivateRelays() {
-  digitalWrite(RELAY_ASPI, HIGH);
-  digitalWrite(RELAY_AIR, HIGH);
+  digitalWrite(RELAY_ASPI, LOW);
+  digitalWrite(RELAY_AIR, LOW);
 }
 
 // formatCredit() returns a string with the credit amount in Euros (with 2 decimal places).
