@@ -5,8 +5,8 @@
 // ------------- PIN DEFINITIONS -------------
 #define COIN_PIN      36   // Coin input (active LOW)
 #define PROGRAM_PIN   39   // Program selection input (LOW: ASPI, HIGH: AIR)
-#define RELAY_ASPI     2   // Relay output for ASPI (active LOW)
-#define RELAY_AIR     15   // Relay output for AIR  (active LOW)
+#define RELAY_ASPI     2   // Relay output for ASPI (active HIGH)
+#define RELAY_AIR     15   // Relay output for AIR  (active HIGH)
 
 // ------------- LCD CONFIGURATION -------------
 // I²C pins: SDA on GPIO4, SCL on GPIO16
