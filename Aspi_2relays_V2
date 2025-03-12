@@ -90,7 +90,7 @@ void loop() {
     creditAmount += 100.0; // Add 100 cents for 1€
     Serial.print("1€ coin inserted. Credit is now: ");
     Serial.println(creditAmount);
-    displayMessage("1€              , "Credit: " + formatCredit(creditAmount), true);
+    displayMessage("1€              ", "Credit: " + formatCredit(creditAmount), true);
     delay(800); // Brief pause so the user can read the message
   } else if (coin1State == HIGH) {
     coin1Pressed = false;
