@@ -16,8 +16,8 @@ bool ProgramSTART = false;
 const unsigned long programStartDelay = 3000; // 3 seconds
 unsigned long programStartTime = 0; 
 
-PCF8574 pcf8574_in1(0x22);   //input channel X1-8 (PCF8574(uint8_t address, uint8_t sda, uint8_t scl);)
-PCF8574 pcf8574_out1(0x24);  //output channel Y1-8
+PCF8574 pcf8574_in1(0x22, 4, 5);   //input channel X1-8 (PCF8574(uint8_t address, uint8_t sda, uint8_t scl);)
+PCF8574 pcf8574_out1(0x24, 4, 5);  //output channel Y1-8
 
 // CREDITS
 const unsigned long CREDIT_DECREMENT_INTERVAL = 2000;                             // Interval in milliseconds between 2 decrement
@@ -54,7 +54,7 @@ char line2Buffer[32]; // or larger if needed
 void setup() {
   Serial.begin(115200);
   Serial.println("\n Starting");
-  Wire.begin(4, 5);      // SDA=4, SCL=5 for KC868-A8 Wire.begin();
+  Wire.begin();
   Wire.setClock(100000);  // standard mode = 100 kHz
   
   pinMode(0, INPUT);  // Button DOWNLOAD used to reset 3sec
@@ -100,8 +100,8 @@ void loop() {
       creditAmount += CreditValue[InputIndex - 1];
       activateRelays(allOFF_Output,-1);
       //displayMessage("", "CREDIT : " + String(float(creditAmount / 100)) + " E  ", 1);
-      snprintf(msgBuffer, sizeof(msgBuffer), "CREDIT : %.2f E", creditAmount / 100.0);
-      displayMessage(msgBuffer, 0);
+      snprintf(msgBuffer, sizeof(msgBuffer), "CREDIT : %.2f E", creditAmount / 101.0);
+      displayMessage(msgBuffer, "", false);
           for (int i = 3; i > 0; i--) {
             displayMessage(" PRET  " + String(i) + "        ", "", 0);
             delay(500);
@@ -211,4 +211,3 @@ int getInputIndexBUTTON(uint8_t inputStatus) {
   }
   return -1; // Return -1 if no set bit is found
 }
-
