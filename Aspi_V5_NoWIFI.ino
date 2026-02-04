@@ -14,7 +14,7 @@ unsigned long previousTime = 0;
 int SelectedProgram = 1;
 bool ProgramSTART = false;
 const unsigned long programStartDelay = 3000; // 3 seconds
-unsigned long programStartTime = 0; 
+unsigned long programStartTime = 0;
 
 PCF8574 pcf8574_in1(0x22, 4, 5);   //input channel X1-8 (PCF8574(uint8_t address, uint8_t sda, uint8_t scl);)
 PCF8574 pcf8574_out1(0x24, 4, 5);  //output channel Y1-8
@@ -49,6 +49,13 @@ int allOFF_Output[] =    { 0, 0, 0, 0, 0, 0, 0, 0 }; // Combination All OFF    O
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 char msgBuffer[32];  // Enough space for the string
 char line2Buffer[32]; // or larger if needed
+String lastLcdLine1 = "";
+String lastLcdLine2 = "";
+bool lcdRefreshPending = false;
+unsigned long lcdRefreshAt = 0;
+unsigned long lastLcdRefresh = 0;
+const unsigned long LCD_REFRESH_DELAY_MS = 1000;
+const unsigned long LCD_PERIODIC_REFRESH_MS = 10000;
 
 // ======================================== SETUP ======================================== //
 void setup() {
@@ -56,7 +63,7 @@ void setup() {
   Serial.println("\n Starting");
   Wire.begin();
   Wire.setClock(100000);  // standard mode = 100 kHz
-  
+
   pinMode(0, INPUT);  // Button DOWNLOAD used to reset 3sec
 
   // Set all pins of PCF8574 instances as inputs or outputs
@@ -84,8 +91,14 @@ void setup() {
 void loop() {
   static unsigned long lastCheck = 0;
   const unsigned long checkInterval = 10000; // Check every 10 seconds
-  uint8_t inputStatus = pcf8574_in1.digitalReadAll();
-  int InputIndex = getInputIndexINPUTSTATUS(inputStatus);
+  int InputIndex = getInputIndexINPUTSTATUS();
+  if (lcdRefreshPending && (long)(millis() - lcdRefreshAt) >= 0) {
+    lcdRefreshPending = false;
+    refreshLcd();
+  }
+  if (millis() - lastLcdRefresh >= LCD_PERIODIC_REFRESH_MS) {
+    refreshLcd();
+  }
   // _______________________ FUNCTION 1 : CHECK INPUT STATUS _______________________ //
   if (!digitalRead(0)) {  // User press RESET button
     delay(2000);
@@ -100,7 +113,7 @@ void loop() {
       creditAmount += CreditValue[InputIndex - 1];
       activateRelays(allOFF_Output,-1);
       //displayMessage("", "CREDIT : " + String(float(creditAmount / 100)) + " E  ", 1);
-      snprintf(msgBuffer, sizeof(msgBuffer), "CREDIT : %.2f E", creditAmount / 101.0);
+      snprintf(msgBuffer, sizeof(msgBuffer), "CREDIT : %.2f E", creditAmount / 100.0);
       displayMessage(msgBuffer, "", false);
           for (int i = 3; i > 0; i--) {
             displayMessage(" PRET  " + String(i) + "        ", "", 0);
@@ -168,16 +181,15 @@ void activateRelays(int* outputStatus, int ForceLow) {
       }
   }
   delay(500);
-  lcd.clear();
-  lcd.init();
-  lcd.backlight();
-  delay(100);
+  requestLcdRefresh(LCD_REFRESH_DELAY_MS);
 }
 // ---- SEND MESSAGE TO LCD & SERIAL ---- //
 void displayMessage(const String& messageL1, const String& messageL2, bool clearLCD) {
   // Truncate strings to 16 characters
   String line1 = messageL1.substring(0, 16);
   String line2 = messageL2.substring(0, 16);
+  lastLcdLine1 = line1;
+  lastLcdLine2 = line2;
 
   // Display message on Serial port
   Serial.println(line1 + " & " + line2);
@@ -190,22 +202,38 @@ void displayMessage(const String& messageL1, const String& messageL2, bool clear
   lcd.print(line1);
   lcd.setCursor(0, 1);
   lcd.print(line2);
+  lastLcdRefresh = millis();
+}
+
+// ---- LCD REFRESH HELPERS ---- //
+void requestLcdRefresh(unsigned long delayMs) {
+  lcdRefreshPending = true;
+  lcdRefreshAt = millis() + delayMs;
+}
+
+void refreshLcd() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(lastLcdLine1);
+  lcd.setCursor(0, 1);
+  lcd.print(lastLcdLine2);
+  lcd.backlight();
+  lastLcdRefresh = millis();
 }
 
 // ---- GET VALUE INPUT STATUS ---- //
-int getInputIndexINPUTSTATUS(uint8_t inputStatus) {
+int getInputIndexINPUTSTATUS() {
   for (int i = 0; i < 8; i++) {
-    if ((inputStatus & (1 << i)) == 0) {
-
+    if (pcf8574_in1.digitalRead(i) == LOW) {
       return i+1;  // Return the index of the set bit
     }
   }
   return -1; // Return -1 if no set bit is found
 }
 // ---- GET VALUE INPUT BUTTON ---- //
-int getInputIndexBUTTON(uint8_t inputStatus) {
+int getInputIndexBUTTON() {
   for (int i = 7; i >= 0; i--) {
-    if ((inputStatus & (1 << i)) == 0) {
+    if (pcf8574_in1.digitalRead(i) == LOW) {
       return i+1;  // Return the index of the set bit
     }
   }
