@@ -16,8 +16,12 @@ bool ProgramSTART = false;
 const unsigned long programStartDelay = 3000; // 3 seconds
 unsigned long programStartTime = 0;
 
-PCF8574 pcf8574_in1(0x22, 4, 5);   //input channel X1-8 (PCF8574(uint8_t address, uint8_t sda, uint8_t scl);)
-PCF8574 pcf8574_out1(0x24, 4, 5);  //output channel Y1-8
+const int SDA_PIN = 4;
+const int SCL_PIN = 5;
+const uint32_t I2C_CLOCK_HZ = 50000;
+
+PCF8574 pcf8574_in1(0x22, SDA_PIN, SCL_PIN);   //input channel X1-8 (PCF8574(uint8_t address, uint8_t sda, uint8_t scl);)
+PCF8574 pcf8574_out1(0x24, SDA_PIN, SCL_PIN);  //output channel Y1-8
 
 // CREDITS
 const unsigned long CREDIT_DECREMENT_INTERVAL = 2000;                             // Interval in milliseconds between 2 decrement
@@ -61,8 +65,9 @@ const unsigned long LCD_PERIODIC_REFRESH_MS = 10000;
 void setup() {
   Serial.begin(115200);
   Serial.println("\n Starting");
-  Wire.begin();
-  Wire.setClock(100000);  // standard mode = 100 kHz
+  recoverI2CBus();
+  Wire.begin(SDA_PIN, SCL_PIN);
+  Wire.setClock(I2C_CLOCK_HZ);
 
   pinMode(0, INPUT);  // Button DOWNLOAD used to reset 3sec
 
@@ -97,6 +102,7 @@ void loop() {
     refreshLcd();
   }
   if (millis() - lastLcdRefresh >= LCD_PERIODIC_REFRESH_MS) {
+    recoverI2CBus();
     refreshLcd();
   }
   // _______________________ FUNCTION 1 : CHECK INPUT STATUS _______________________ //
@@ -219,6 +225,27 @@ void refreshLcd() {
   lcd.print(lastLcdLine2);
   lcd.backlight();
   lastLcdRefresh = millis();
+}
+
+// ---- I2C BUS RECOVERY ---- //
+void recoverI2CBus() {
+  pinMode(SDA_PIN, INPUT_PULLUP);
+  pinMode(SCL_PIN, INPUT_PULLUP);
+  delay(2);
+
+  if (digitalRead(SDA_PIN) == LOW) {
+    pinMode(SCL_PIN, OUTPUT);
+    for (int i = 0; i < 9; i++) {
+      digitalWrite(SCL_PIN, HIGH);
+      delayMicroseconds(5);
+      digitalWrite(SCL_PIN, LOW);
+      delayMicroseconds(5);
+    }
+  }
+
+  pinMode(SCL_PIN, INPUT_PULLUP);
+  pinMode(SDA_PIN, INPUT_PULLUP);
+  delay(2);
 }
 
 // ---- GET VALUE INPUT STATUS ---- //
